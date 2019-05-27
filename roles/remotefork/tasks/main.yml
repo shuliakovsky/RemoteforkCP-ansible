@@ -1,0 +1,106 @@
+---
+- name: Add the dotnet product feed
+  shell: sudo rpm -Uvh https://packages.microsoft.com/config/rhel/7/packages-microsoft-prod.rpm
+  when: ansible_os_family == "RedHat"
+  tags: dotnet
+
+- name: Update yum cache
+  shell: yum update
+  when: ansible_os_family == "RedHat"
+  tags: dotnet
+
+- name: Install the .NET SDK
+  package:
+    name: "{{ item }}"
+    state: latest
+  tags: dotnet, packages
+  with_items:
+    - libunwind
+    - libunwind-devel
+    - dotnet-sdk-2.2
+    - libxslt-devel
+    - libxslt-python
+    - python-setuptools
+    - net-tools
+    - python-apsw
+
+- name: Create users
+  user:
+    name: '{{ item }}'
+    shell: /sbin/nologin
+    home: '/home/{{ item }}'
+    state: present
+  with_items:
+    - acestream
+    - remotefork
+  tags: users
+
+
+- name: Download acestream package
+  shell: wget https://repo.shuliakovsky.com/forkplayer/acestream.tar.gz -O /opt/acestream.tar.gz
+  tags: forkplayer
+
+- name: Download remotefork package
+  shell: wget https://repo.shuliakovsky.com/forkplayer/remotefork.tar.gz -O /opt/remotefork.tar.gz
+  tags: forkplayer
+
+- name: Extract Remotefork and acestream packages
+  shell: "tar -xzvf {{ item }} -C /opt/"
+  with_items:
+   - /opt/acestream.tar.gz
+   - /opt/remotefork.tar.gz
+  tags: forkplayer
+
+- name: Settings update
+  template:
+    src: "Settings.json.j2"
+    dest: "/opt/remotefork/Settings.json"
+    owner: remotefork
+    group: remotefork
+    mode: 0644
+  tags: services
+
+- name: Prepare directory
+  file:
+    path: /dev/disk/by-id
+    mode: 0777
+    owner: acestream
+    group: acestream
+    recurse: yes
+    state: directory
+  tags: forkplayer
+
+- name: Install services
+  template:
+    src: "{{ item }}"
+    dest: "/etc/systemd/system/{{ item.split('.')[0:2]| join('.') }}"
+    owner: root
+    group: root
+    mode: 0644
+  tags: services
+  with_items:
+    - acestream.service.j2
+    - remotefork.service.j2
+
+- name: force systemd to reread configs
+  systemd:
+    daemon_reload: yes
+
+- name: enable services acestream and remotefork
+  systemd:
+    name: "{{ item }}"
+    enabled: yes
+  with_items:
+    - acestream.service
+    - remotefork.service
+  tags: services
+
+- name: restart service cron on centos, in all cases, also issue daemon-reload to pick up config changes
+  systemd:
+    state: restarted
+    daemon_reload: yes
+    name: "{{ item }}"
+  with_items:
+    - acestream.service
+    - remotefork.service
+  tags: services

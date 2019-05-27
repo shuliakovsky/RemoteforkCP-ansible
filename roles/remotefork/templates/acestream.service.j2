@@ -1,0 +1,14 @@
+[Unit]
+Description=acestream Service
+After=network.target
+
+[Service]
+Type=simple
+User=acestream
+ExecStart=/opt/acestream/start-engine --client-console
+Restart=on-abort
+
+
+[Install]
+WantedBy=multi-user.target
+

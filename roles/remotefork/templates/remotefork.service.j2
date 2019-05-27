@@ -1,0 +1,15 @@
+[Unit]
+Description=remotefork Service
+After=network.target
+ASPNETCORE_ENVIRONMENT="Development"
+
+[Service]
+Type=simple
+User=remotefork
+ExecStart=/opt/remotefork/RemoteForkCP
+Restart=on-abort
+
+
+[Install]
+WantedBy=multi-user.target
+
